@@ -1,51 +1,78 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import MoviesList from "./components/MoviesList";
 import "./App.css";
-
-// const dummyMovies = [
-//   {
-//     id: 1,
-//     title: "Some Dummy Movie",
-//     openingText: "This is the opening text of the movie",
-//     releaseDate: "2021-05-18",
-//   },
-//   {
-//     id: 2,
-//     title: "Some Dummy Movie 2",
-//     openingText: "This is the second opening text of the movie",
-//     releaseDate: "2021-05-19",
-//   },
-// ];
 
 const App = () => {
   const [movies, setMovies] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [retrying, setRetrying] = useState(false);
 
-  const fetchMovieHandler = async () => {
+  const fetchMovies = async () => {
     setIsLoading(true);
-    const response = await fetch("https://swapi.dve/api/films");
-    const data = await response.json();
-    const transformedMovies = data.results.map((movieData) => {
-      return {
+    setError(null);
+
+    try {
+      const response = await fetch("https://swapi.dev/ai/films");
+      if (!response.ok) {
+        throw new Error("Failed to fetch movies");
+      }
+
+      const data = await response.json();
+      const transformedMovies = data.results.map((movieData) => ({
         id: movieData.episode,
         title: movieData.title,
         openingText: movieData.opening_crawl,
         releaseDate: movieData.release_date,
-      };
-    });
-    setMovies(transformedMovies);
+      }));
 
-    setIsLoading(false);
+      setMovies(transformedMovies);
+      setIsLoading(false);
+    } catch (error) {
+      setError(error.message);
+      setIsLoading(false);
+
+      // Retry logic
+      if (retrying) {
+        setTimeout(fetchMovies, 5000);
+      }
+    }
   };
+
+  const startRetrying = () => {
+    setRetrying(true);
+    fetchMovies();
+  };
+
+  const stopRetrying = () => {
+    setRetrying(false);
+  };
+
+  useEffect(() => {
+    if (retrying) {
+      fetchMovies();
+    }
+  }, [retrying]);
 
   return (
     <>
       <section>
-        <button onClick={fetchMovieHandler}>Fetch Movies</button>
+        <button style={{ margin: "1rem" }} onClick={startRetrying}>
+          Fetch Movies
+        </button>
+        {retrying && <button onClick={stopRetrying}>Cancel</button>}
       </section>
       <section>
-        {!isLoading && movies.length > 0 && <MoviesList movies={movies} />}
-        {isLoading && movies.length === 0 && <p>Loaing data...</p>}
+        {!isLoading && error && (
+          <p>
+            Error: {error} {retrying ? "Retrying..." : ""}
+          </p>
+        )}
+        {!isLoading && !error && movies.length > 0 && (
+          <MoviesList movies={movies} />
+        )}
+        {!isLoading && !error && movies.length === 0 && <p>Found no movies!</p>}
+        {isLoading && <p>Loading data...</p>}
       </section>
     </>
   );
