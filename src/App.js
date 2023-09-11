@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import MoviesList from "./components/MoviesList";
 import "./App.css";
 
@@ -8,12 +8,12 @@ const App = () => {
   const [error, setError] = useState(null);
   const [retrying, setRetrying] = useState(false);
 
-  const fetchMovies = async () => {
+  const fetchMoviesHandler = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch("https://swapi.dev/ai/films");
+      const response = await fetch("https://swapi.dev/api/films");
       if (!response.ok) {
         throw new Error("Failed to fetch movies");
       }
@@ -34,14 +34,18 @@ const App = () => {
 
       // Retry logic
       if (retrying) {
-        setTimeout(fetchMovies, 5000);
+        setTimeout(fetchMoviesHandler, 5000);
       }
     }
-  };
+  });
+  
+  useEffect(()=> {
+    fetchMoviesHandler();
+  }, [fetchMoviesHandler]);
 
   const startRetrying = () => {
     setRetrying(true);
-    fetchMovies();
+    fetchMoviesHandler();
   };
 
   const stopRetrying = () => {
@@ -50,9 +54,11 @@ const App = () => {
 
   useEffect(() => {
     if (retrying) {
-      fetchMovies();
+      fetchMoviesHandler();
     }
   }, [retrying]);
+
+
 
   return (
     <>
@@ -65,7 +71,7 @@ const App = () => {
       <section>
         {!isLoading && error && (
           <p>
-            Error: {error} {retrying ? "Retrying..." : ""}
+            Error: {error} {retrying ? "!Retrying..." : ""}
           </p>
         )}
         {!isLoading && !error && movies.length > 0 && (
